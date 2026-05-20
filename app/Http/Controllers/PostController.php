@@ -13,7 +13,9 @@ class PostController extends Controller
     public function index(): Response
     {
         return Inertia::render('Posts/Index', [
-            'posts' => Post::with('author:id,name')->latest()->paginate(10),
+            'posts'          => Post::with('author:id,name')->latest()->paginate(10),
+            'authUserId'     => auth()->id(),
+            'isSuperadmin'   => auth()->user()->hasRole('superadmin'),
         ]);
     }
 
@@ -43,14 +45,19 @@ class PostController extends Controller
 
     public function edit(Post $post): Response
     {
-        abort_if(! auth()->user()->can('edit posts'), 403);
+        $user = auth()->user();
+        abort_if(! $user->can('edit posts'), 403);
+        // Editors may only edit their own posts; superadmin can edit any
+        abort_if($user->hasRole('editor') && $post->user_id !== $user->id, 403);
 
         return Inertia::render('Posts/Edit', ['post' => $post]);
     }
 
     public function update(Request $request, Post $post): RedirectResponse
     {
-        abort_if(! $request->user()->can('edit posts'), 403);
+        $user = $request->user();
+        abort_if(! $user->can('edit posts'), 403);
+        abort_if($user->hasRole('editor') && $post->user_id !== $user->id, 403);
 
         $validated = $request->validate([
             'title'   => 'required|string|max:255',
@@ -64,7 +71,10 @@ class PostController extends Controller
 
     public function destroy(Request $request, Post $post): RedirectResponse
     {
-        abort_if(! $request->user()->can('delete posts'), 403);
+        $user = $request->user();
+        abort_if(! $user->can('delete posts'), 403);
+        // Editors don't have delete permission, but guard superadmin-only delete for safety
+        abort_if($user->hasRole('editor') && $post->user_id !== $user->id, 403);
 
         $post->delete();
 

@@ -4,7 +4,7 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { useForm } from '@inertiajs/vue3';
+import { Link, useForm } from '@inertiajs/vue3';
 
 const form = useForm({
     title: '',
@@ -20,7 +20,12 @@ const submit = () => {
     <AdminLayout>
         <template #header>New Post</template>
 
-        <div class="max-w-2xl bg-white rounded shadow p-6">
+        <div class="max-w-2xl">
+            <Link :href="route('posts.index')" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-4">
+                &larr; Back to Posts
+            </Link>
+
+            <div class="bg-white rounded shadow p-6">
             <form @submit.prevent="submit" class="space-y-4">
                 <div>
                     <InputLabel for="title" value="Title" />
@@ -49,6 +54,7 @@ const submit = () => {
                     Publish Post
                 </PrimaryButton>
             </form>
+            </div>
         </div>
     </AdminLayout>
 </template>
