@@ -14,8 +14,7 @@ Route::get('/', function () {
 // All authenticated users: view posts
 Route::middleware(['auth', 'verified'])->group(function () {
 
-    Route::get('/dashboard', fn () => Inertia::render('Dashboard'))
-        ->name('dashboard');
+    Route::get('/dashboard', fn () => redirect()->route('posts.index'))->name('dashboard');
 
     // Posts — backend gates enforce per-action permissions
     Route::resource('posts', PostController::class);

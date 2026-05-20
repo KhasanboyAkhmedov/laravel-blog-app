@@ -153,14 +153,17 @@ const roleColor = (role) => ({
                             v-for="link in users.links"
                             :key="link.label"
                             :href="link.url || undefined"
-                            v-html="link.label"
                             class="w-8 h-8 flex items-center justify-center rounded-lg text-xs transition-colors"
                             :class="link.active
                                 ? 'bg-primary text-on-primary font-semibold'
                                 : link.url
                                     ? 'text-on-surface-variant hover:bg-surface-container cursor-pointer'
                                     : 'text-outline opacity-40 pointer-events-none'"
-                        />
+                        >
+                            <span v-if="link.label.includes('Previous')" class="material-symbols-outlined text-[18px]">chevron_left</span>
+                            <span v-else-if="link.label.includes('Next')" class="material-symbols-outlined text-[18px]">chevron_right</span>
+                            <span v-else v-html="link.label" />
+                        </a>
                     </div>
                 </div>
             </div>

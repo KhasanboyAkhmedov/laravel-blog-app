@@ -1,6 +1,6 @@
 <script setup>
 import { Link, usePage, router } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const page = usePage();
 const user = computed(() => page.props.auth.user);
@@ -40,7 +40,28 @@ const isActive = (match) => {
     try { return route().current(match); } catch { return false; }
 };
 
-const logout = () => router.post(route('logout'));
+// Logout modal
+const showLogoutModal = ref(false);
+const confirmLogout = () => router.post(route('logout'));
+
+// Toast system
+const toasts = ref([]);
+const addToast = (message, type = 'success') => {
+    const id = Date.now();
+    toasts.value.push({ id, message, type });
+    setTimeout(() => {
+        toasts.value = toasts.value.filter(t => t.id !== id);
+    }, 4000);
+};
+
+watch(() => flash.value?.message, (msg) => {
+    if (msg) addToast(msg, 'success');
+});
+watch(() => flash.value?.error, (msg) => {
+    if (msg) addToast(msg, 'error');
+});
+
+const initials = (name) => name ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?';
 </script>
 
 <template>
@@ -65,7 +86,7 @@ const logout = () => router.post(route('logout'));
                 </div>
                 <div>
                     <h1 class="text-sm font-bold text-on-surface leading-tight">Blog App</h1>
-                    <p class="text-xs text-on-surface-variant opacity-70">Admin Console</p>
+                    <p v-if="hasRole('superadmin') || hasRole('editor')" class="text-xs text-on-surface-variant opacity-70">Admin Console</p>
                 </div>
                 <!-- Close button mobile -->
                 <button
@@ -109,14 +130,17 @@ const logout = () => router.post(route('logout'));
             <div class="pt-4 border-t border-outline-variant space-y-1">
                 <Link
                     :href="route('profile.edit')"
-                    class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high transition-colors rounded-xl text-sm"
+                    class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors"
+                    :class="isActive('profile.*')
+                        ? 'bg-secondary-container text-on-secondary-container font-medium'
+                        : 'text-on-surface-variant hover:bg-surface-container-high'"
                     @click="sidebarOpen = false"
                 >
-                    <span class="material-symbols-outlined text-[20px]">settings</span>
-                    Settings
+                    <span class="material-symbols-outlined text-[20px]">person</span>
+                    Profile
                 </Link>
                 <button
-                    @click="logout"
+                    @click="showLogoutModal = true"
                     class="w-full flex items-center gap-3 px-4 py-3 text-error hover:bg-error-container/20 transition-colors rounded-xl text-sm"
                 >
                     <span class="material-symbols-outlined text-[20px]">logout</span>
@@ -143,8 +167,11 @@ const logout = () => router.post(route('logout'));
                     <slot name="header" />
                 </div>
 
-                <!-- Right: user info -->
-                <div class="flex items-center gap-3 ml-4">
+                <!-- Right: user info → navigate to profile -->
+                <Link
+                    :href="route('profile.edit')"
+                    class="flex items-center gap-3 ml-4 rounded-xl px-2 py-1.5 hover:bg-surface-container transition-colors"
+                >
                     <div class="hidden sm:block text-right">
                         <p class="text-xs font-bold text-on-surface leading-none">{{ user.name }}</p>
                         <p class="text-[10px] text-primary uppercase tracking-wider mt-0.5">
@@ -152,19 +179,10 @@ const logout = () => router.post(route('logout'));
                         </p>
                     </div>
                     <div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-xs font-bold text-on-secondary-container flex-shrink-0">
-                        {{ user.name.charAt(0).toUpperCase() }}
+                        {{ initials(user.name) }}
                     </div>
-                </div>
+                </Link>
             </header>
-
-            <!-- Flash -->
-            <div
-                v-if="flash?.message"
-                class="mx-4 lg:mx-6 mt-4 flex items-center gap-2 p-3 bg-emerald-50 text-emerald-800 rounded-xl text-sm border border-emerald-200"
-            >
-                <span class="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span>
-                {{ flash.message }}
-            </div>
 
             <!-- Page content -->
             <main class="flex-1 p-4 lg:p-8">
@@ -177,4 +195,56 @@ const logout = () => router.post(route('logout'));
             </footer>
         </div>
     </div>
+
+    <!-- Logout confirmation modal -->
+    <Teleport to="body">
+        <div v-if="showLogoutModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" @click="showLogoutModal = false" />
+            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-full bg-error-container flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-error text-[20px]">logout</span>
+                    </div>
+                    <h2 class="text-base font-bold text-on-surface">Sign out?</h2>
+                </div>
+                <p class="text-sm text-on-surface-variant mb-6">You will be signed out of your account.</p>
+                <div class="flex justify-end gap-3">
+                    <button
+                        @click="showLogoutModal = false"
+                        class="px-4 py-2 text-sm rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors"
+                    >Cancel</button>
+                    <button
+                        @click="confirmLogout"
+                        class="px-4 py-2 text-sm rounded-xl bg-error text-on-error hover:opacity-90 transition-opacity"
+                    >Sign out</button>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+
+    <!-- Toast notifications -->
+    <Teleport to="body">
+        <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
+            <TransitionGroup
+                enter-active-class="transition-all duration-300"
+                enter-from-class="opacity-0 translate-y-2"
+                leave-active-class="transition-all duration-300"
+                leave-to-class="opacity-0 translate-y-2"
+            >
+                <div
+                    v-for="toast in toasts"
+                    :key="toast.id"
+                    class="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium min-w-[260px] max-w-sm"
+                    :class="toast.type === 'error'
+                        ? 'bg-error text-on-error'
+                        : 'bg-zinc-900 text-white'"
+                >
+                    <span class="material-symbols-outlined text-[18px] flex-shrink-0">
+                        {{ toast.type === 'error' ? 'error' : 'check_circle' }}
+                    </span>
+                    <span class="flex-1">{{ toast.message }}</span>
+                </div>
+            </TransitionGroup>
+        </div>
+    </Teleport>
 </template>
