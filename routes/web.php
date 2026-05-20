@@ -28,6 +28,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Superadmin-only
     Route::middleware(['role:superadmin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::post('/users', [AdminUserController::class, 'store'])->name('users.store');
         Route::patch('/users/{user}/role', [AdminUserController::class, 'updateRole'])->name('users.update-role');
         Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
     });

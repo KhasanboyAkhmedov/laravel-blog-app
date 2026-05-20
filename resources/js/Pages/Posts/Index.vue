@@ -12,131 +12,172 @@ const props = defineProps({
 const page = usePage();
 const hasPermission = (p) => page.props.auth.permissions.includes(p);
 
-// Editors can only act on their own posts; superadmin can act on any
-const canEdit = (post) =>
-    hasPermission('edit posts') && (props.isSuperadmin || post.author?.id === props.authUserId);
+const canEdit   = (post) => hasPermission('edit posts')   && (props.isSuperadmin || post.author?.id === props.authUserId);
+const canDelete = (post) => hasPermission('delete posts') && (props.isSuperadmin || post.author?.id === props.authUserId);
 
-const canDelete = (post) =>
-    hasPermission('delete posts') && (props.isSuperadmin || post.author?.id === props.authUserId);
-
-// Delete modal state
-const pendingDeleteId = ref(null);
+// Delete modal
+const pendingId = ref(null);
 const showModal = ref(false);
+const openDelete = (id) => { pendingId.value = id; showModal.value = true; };
+const cancelDelete = () => { showModal.value = false; pendingId.value = null; };
+const confirmDelete = () => router.delete(route('posts.destroy', pendingId.value), { onFinish: cancelDelete });
 
-const openDeleteModal = (id) => {
-    pendingDeleteId.value = id;
-    showModal.value = true;
-};
-
-const cancelDelete = () => {
-    showModal.value = false;
-    pendingDeleteId.value = null;
-};
-
-const confirmDelete = () => {
-    router.delete(route('posts.destroy', pendingDeleteId.value), {
-        onFinish: () => cancelDelete(),
-    });
-};
+const initials = (name) => name ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?';
 </script>
 
 <template>
     <AdminLayout>
-        <template #header>Posts</template>
+        <template #header>
+            <nav class="flex items-center gap-2 text-xs text-on-surface-variant">
+                <span>Console</span>
+                <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+                <span class="text-primary font-semibold">Posts</span>
+            </nav>
+        </template>
 
-        <div class="flex justify-between items-center mb-4">
-            <h1 class="text-xl font-semibold">All Posts</h1>
-            <Link
-                v-if="hasPermission('create posts')"
-                :href="route('posts.create')"
-                class="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
-            >
-                New Post
-            </Link>
-        </div>
+        <div class="max-w-7xl mx-auto space-y-6">
+            <!-- Page title + CTA -->
+            <div class="flex items-end justify-between">
+                <h2 class="text-2xl font-bold text-on-surface tracking-tight">Posts</h2>
+                <Link
+                    v-if="hasPermission('create posts')"
+                    :href="route('posts.create')"
+                    class="flex items-center gap-2 px-5 py-2.5 bg-primary text-on-primary rounded-xl text-xs font-semibold hover:opacity-90 shadow-sm transition-all active:scale-[0.98]"
+                >
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    New Post
+                </Link>
+            </div>
 
-        <div class="bg-white rounded shadow overflow-hidden">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 text-left text-gray-600">
-                    <tr>
-                        <th class="px-4 py-3">Title</th>
-                        <th class="px-4 py-3">Author</th>
-                        <th class="px-4 py-3">Date</th>
-                        <th class="px-4 py-3">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    <tr v-for="post in posts.data" :key="post.id">
-                        <td class="px-4 py-3 font-medium">{{ post.title }}</td>
-                        <td class="px-4 py-3 text-gray-500">{{ post.author?.name }}</td>
-                        <td class="px-4 py-3 text-gray-500">{{ new Date(post.created_at).toLocaleDateString() }}</td>
-                        <td class="px-4 py-3 flex gap-3">
-                            <Link :href="route('posts.show', post.id)" class="text-blue-600 hover:underline">
-                                View
-                            </Link>
-                            <Link
-                                v-if="canEdit(post)"
-                                :href="route('posts.edit', post.id)"
-                                class="text-yellow-600 hover:underline"
+            <!-- Stats bar -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="sm:col-span-2 bg-white border border-outline-variant rounded-xl p-4 flex items-center gap-6">
+                    <div>
+                        <p class="text-[11px] text-on-surface-variant uppercase tracking-widest opacity-60">Total Posts</p>
+                        <p class="text-xl font-bold text-on-surface mt-0.5">{{ posts.total }}</p>
+                    </div>
+                    <div class="w-px h-8 bg-outline-variant"></div>
+                    <div>
+                        <p class="text-[11px] text-on-surface-variant uppercase tracking-widest opacity-60">This Page</p>
+                        <p class="text-xl font-bold text-on-surface mt-0.5">{{ posts.data.length }}</p>
+                    </div>
+                </div>
+                <div class="bg-primary text-on-primary rounded-xl p-4 flex flex-col justify-between relative overflow-hidden">
+                    <p class="text-xs opacity-80">Current Page</p>
+                    <p class="text-lg font-bold">{{ posts.current_page }} / {{ posts.last_page }}</p>
+                    <div class="absolute -right-3 -bottom-3 w-20 h-20 bg-white/10 rounded-full blur-2xl"></div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-sm">
+                <!-- Desktop table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse min-w-[640px]">
+                        <thead class="bg-surface-container-low border-b border-outline-variant">
+                            <tr>
+                                <th class="px-6 py-4 text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold w-[45%]">Title</th>
+                                <th class="px-6 py-4 text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold">Author</th>
+                                <th class="px-6 py-4 text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold hidden md:table-cell">Date</th>
+                                <th class="px-6 py-4 text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline-variant">
+                            <tr
+                                v-for="post in posts.data"
+                                :key="post.id"
+                                class="hover:bg-surface-container transition-colors group"
                             >
-                                Edit
-                            </Link>
-                            <button
-                                v-if="canDelete(post)"
-                                @click="openDeleteModal(post.id)"
-                                class="text-red-600 hover:underline"
-                            >
-                                Delete
-                            </button>
-                        </td>
-                    </tr>
-                    <tr v-if="!posts.data.length">
-                        <td colspan="4" class="px-4 py-6 text-center text-gray-400">No posts yet.</td>
-                    </tr>
-                </tbody>
-            </table>
+                                <td class="px-6 py-4">
+                                    <p class="text-sm font-semibold text-on-surface line-clamp-2">{{ post.title }}</p>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-6 h-6 rounded-full bg-secondary-container flex items-center justify-center text-[10px] font-bold text-on-secondary-container flex-shrink-0">
+                                            {{ initials(post.author?.name) }}
+                                        </div>
+                                        <span class="text-sm text-on-surface hidden sm:block">{{ post.author?.name }}</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 hidden md:table-cell">
+                                    <span class="text-sm text-on-surface-variant">{{ new Date(post.created_at).toLocaleDateString('en', { month:'short', day:'numeric', year:'numeric' }) }}</span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="flex items-center justify-end gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+                                        <Link
+                                            :href="route('posts.show', post.id)"
+                                            class="p-1.5 hover:bg-surface-container-highest rounded-lg text-secondary transition-colors"
+                                            title="View"
+                                        >
+                                            <span class="material-symbols-outlined text-[20px]">visibility</span>
+                                        </Link>
+                                        <Link
+                                            v-if="canEdit(post)"
+                                            :href="route('posts.edit', post.id)"
+                                            class="p-1.5 hover:bg-tertiary-fixed-dim/20 rounded-lg text-tertiary transition-colors"
+                                            title="Edit"
+                                        >
+                                            <span class="material-symbols-outlined text-[20px]">edit</span>
+                                        </Link>
+                                        <button
+                                            v-if="canDelete(post)"
+                                            @click="openDelete(post.id)"
+                                            class="p-1.5 hover:bg-error-container/40 rounded-lg text-error transition-colors"
+                                            title="Delete"
+                                        >
+                                            <span class="material-symbols-outlined text-[20px]">delete</span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-if="!posts.data.length">
+                                <td colspan="4" class="px-6 py-12 text-center text-on-surface-variant text-sm">
+                                    <span class="material-symbols-outlined text-[40px] block mb-2 opacity-30">article</span>
+                                    No posts yet.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="px-6 py-4 bg-surface-container-lowest border-t border-outline-variant flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <span class="text-xs text-on-surface-variant">
+                        Showing {{ posts.from }}–{{ posts.to }} of {{ posts.total }} results
+                    </span>
+                    <div class="flex items-center gap-1 flex-wrap justify-center">
+                        <Link
+                            v-for="link in posts.links"
+                            :key="link.label"
+                            :href="link.url || '#'"
+                            v-html="link.label"
+                            class="w-8 h-8 flex items-center justify-center rounded-lg text-xs transition-colors"
+                            :class="link.active
+                                ? 'bg-primary text-on-primary font-semibold'
+                                : link.url
+                                    ? 'text-on-surface-variant hover:bg-surface-container'
+                                    : 'text-outline opacity-40 pointer-events-none'"
+                        />
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Pagination -->
-        <div class="mt-4 flex gap-2 flex-wrap">
-            <Link
-                v-for="link in posts.links"
-                :key="link.label"
-                :href="link.url || '#'"
-                v-html="link.label"
-                class="px-3 py-1 rounded text-sm border"
-                :class="link.active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'"
-            />
-        </div>
-
-        <!-- Delete confirmation modal -->
+        <!-- Delete modal -->
         <Teleport to="body">
-            <div
-                v-if="showModal"
-                class="fixed inset-0 z-50 flex items-center justify-center"
-            >
-                <!-- Backdrop -->
-                <div class="absolute inset-0 bg-black/40" @click="cancelDelete" />
-
-                <!-- Dialog -->
-                <div class="relative bg-white rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
-                    <h2 class="text-lg font-semibold text-gray-800 mb-2">Delete post?</h2>
-                    <p class="text-sm text-gray-500 mb-6">
-                        This action cannot be undone. The post and its activity log entry will be permanently removed.
-                    </p>
+            <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" @click="cancelDelete" />
+                <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-error-container flex items-center justify-center flex-shrink-0">
+                            <span class="material-symbols-outlined text-error text-[20px]">delete</span>
+                        </div>
+                        <h2 class="text-base font-bold text-on-surface">Delete post?</h2>
+                    </div>
+                    <p class="text-sm text-on-surface-variant mb-6">This action cannot be undone. The post will be permanently removed.</p>
                     <div class="flex justify-end gap-3">
-                        <button
-                            @click="cancelDelete"
-                            class="px-4 py-2 text-sm rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            @click="confirmDelete"
-                            class="px-4 py-2 text-sm rounded bg-red-600 text-white hover:bg-red-700"
-                        >
-                            Yes, delete
-                        </button>
+                        <button @click="cancelDelete" class="px-4 py-2 text-sm rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors">Cancel</button>
+                        <button @click="confirmDelete" class="px-4 py-2 text-sm rounded-xl bg-error text-on-error hover:opacity-90 transition-opacity">Delete</button>
                     </div>
                 </div>
             </div>
