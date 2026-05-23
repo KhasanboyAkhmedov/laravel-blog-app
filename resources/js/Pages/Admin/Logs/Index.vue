@@ -6,9 +6,20 @@ import { ref } from 'vue';
 defineProps({ logs: Object });
 
 const actionConfig = (action) => ({
-    created: { label: 'Created', icon: 'add_circle', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    updated: { label: 'Updated', icon: 'edit', classes: 'bg-amber-50 text-amber-700 border-amber-200' },
-    deleted: { label: 'Deleted', icon: 'delete', classes: 'bg-error-container/60 text-error border-error/20' },
+    // Post events
+    created:          { label: 'Created',         icon: 'add_circle',      classes: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    updated:          { label: 'Updated',          icon: 'edit',            classes: 'bg-amber-50 text-amber-700 border-amber-200' },
+    deleted:          { label: 'Deleted',          icon: 'delete',          classes: 'bg-error-container/60 text-error border-error/20' },
+    // Auth events
+    login:            { label: 'Login',            icon: 'login',           classes: 'bg-blue-50 text-blue-700 border-blue-200' },
+    logout:           { label: 'Logout',           icon: 'logout',          classes: 'bg-surface-container text-on-surface-variant border-outline-variant' },
+    login_failed:     { label: 'Failed Login',     icon: 'gpp_bad',         classes: 'bg-orange-50 text-orange-700 border-orange-200' },
+    password_reset:   { label: 'Password Reset',   icon: 'lock_reset',      classes: 'bg-purple-50 text-purple-700 border-purple-200' },
+    // User management events
+    user_created:     { label: 'User Created',     icon: 'person_add',      classes: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    role_changed:     { label: 'Role Changed',     icon: 'manage_accounts', classes: 'bg-amber-50 text-amber-700 border-amber-200' },
+    profile_updated:  { label: 'Profile Updated',  icon: 'badge',           classes: 'bg-blue-50 text-blue-700 border-blue-200' },
+    account_deleted:  { label: 'Account Deleted',  icon: 'person_remove',   classes: 'bg-error-container/60 text-error border-error/20' },
 }[action] ?? { label: action, icon: 'info', classes: 'bg-surface-container text-on-surface-variant border-outline-variant' });
 
 // Payload modal

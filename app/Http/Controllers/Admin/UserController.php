@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\ActivityLoggerService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -38,6 +39,18 @@ class UserController extends Controller
 
         $user->assignRole($validated['role']);
 
+        ActivityLoggerService::logRaw(
+            action:  'user_created',
+            model:   User::class,
+            modelId: $user->id,
+            payload: [
+                'name'       => $user->name,
+                'email'      => $user->email,
+                'role'       => $validated['role'],
+                'created_by' => auth()->user()->email,
+            ],
+        );
+
         return back()->with('message', "User {$user->name} created.");
     }
 
@@ -45,7 +58,21 @@ class UserController extends Controller
     {
         $request->validate(['role' => 'required|string|exists:roles,name']);
 
+        $oldRoles = $user->getRoleNames()->toArray();
+
         $user->syncRoles([$request->role]);
+
+        ActivityLoggerService::logRaw(
+            action:  'role_changed',
+            model:   User::class,
+            modelId: $user->id,
+            payload: [
+                'user'      => $user->email,
+                'old_roles' => $oldRoles,
+                'new_role'  => $request->role,
+                'changed_by'=> auth()->user()->email,
+            ],
+        );
 
         return back()->with('message', 'Role updated.');
     }
