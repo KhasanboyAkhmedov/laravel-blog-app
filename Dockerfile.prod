@@ -2,9 +2,14 @@ FROM php:8.3-fpm
 
 # ── System packages ───────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y \
-    git curl zip unzip \
+    git curl zip unzip nginx gettext-base \
     libpng-dev libonig-dev libxml2-dev libpq-dev \
     && docker-php-ext-install pdo pdo_pgsql pgsql mbstring exif pcntl bcmath gd opcache \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# ── Node.js 22 (needed to build Vite assets) ─────────────────────────────────
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # ── Opcache config (makes PHP much faster in production) ─────────────────────
@@ -18,12 +23,19 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# ── Install PHP deps (production only, no dev packages) ──────────────────────
+# ── Install PHP deps (no dev packages, no scripts yet) ───────────────────────
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 
+# ── Install Node deps ─────────────────────────────────────────────────────────
+COPY package.json package-lock.json ./
+RUN npm ci
+
 # ── Copy full app code ────────────────────────────────────────────────────────
 COPY . .
+
+# ── Build frontend assets ─────────────────────────────────────────────────────
+RUN npm run build && rm -rf node_modules
 
 # ── Finish composer + optimize autoloader ────────────────────────────────────
 RUN composer dump-autoload --optimize --no-dev
@@ -32,5 +44,15 @@ RUN composer dump-autoload --optimize --no-dev
 RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-EXPOSE 9000
-CMD ["php-fpm"]
+# ── nginx config ──────────────────────────────────────────────────────────────
+COPY docker/nginx/railway.conf.template /etc/nginx/conf.d/default.conf.template
+# Remove the default nginx site so ours is the only one
+RUN rm -f /etc/nginx/sites-enabled/default
+
+# ── Entrypoint ────────────────────────────────────────────────────────────────
+COPY docker/entrypoint.prod.sh /entrypoint.prod.sh
+RUN chmod +x /entrypoint.prod.sh
+
+EXPOSE 8080
+
+CMD ["/entrypoint.prod.sh"]
