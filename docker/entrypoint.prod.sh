@@ -12,21 +12,29 @@ echo "=========================================="
 # one from the current environment on every boot.
 echo "→ Writing .env from environment..."
 {
-    printf 'APP_NAME="%s"\n'     "${APP_NAME:-Blog App}"
-    printf 'APP_ENV=%s\n'        "${APP_ENV:-production}"
-    printf 'APP_KEY=%s\n'        "${APP_KEY:-}"
-    printf 'APP_DEBUG=%s\n'      "${APP_DEBUG:-false}"
-    printf 'APP_URL=%s\n'        "${APP_URL:-http://localhost}"
-    printf 'LOG_CHANNEL=%s\n'    "${LOG_CHANNEL:-stack}"
-    printf 'DB_CONNECTION=%s\n'  "${DB_CONNECTION:-pgsql}"
-    printf 'DB_HOST=%s\n'        "${DB_HOST:-127.0.0.1}"
-    printf 'DB_PORT=%s\n'        "${DB_PORT:-5432}"
-    printf 'DB_DATABASE=%s\n'    "${DB_DATABASE:-laravel}"
-    printf 'DB_USERNAME=%s\n'    "${DB_USERNAME:-postgres}"
-    printf 'DB_PASSWORD=%s\n'    "${DB_PASSWORD:-}"
-    printf 'SESSION_DRIVER=%s\n' "${SESSION_DRIVER:-database}"
-    printf 'CACHE_STORE=%s\n'    "${CACHE_STORE:-database}"
+    printf 'APP_NAME="%s"\n'       "${APP_NAME:-Blog App}"
+    printf 'APP_ENV=%s\n'          "${APP_ENV:-production}"
+    printf 'APP_KEY=%s\n'          "${APP_KEY:-}"
+    printf 'APP_DEBUG=%s\n'        "${APP_DEBUG:-false}"
+    printf 'APP_URL=%s\n'          "${APP_URL:-http://localhost}"
+    printf 'LOG_CHANNEL=%s\n'      "${LOG_CHANNEL:-stack}"
+    printf 'DB_CONNECTION=%s\n'    "${DB_CONNECTION:-pgsql}"
+    printf 'SESSION_DRIVER=%s\n'   "${SESSION_DRIVER:-database}"
+    printf 'CACHE_STORE=%s\n'      "${CACHE_STORE:-database}"
     printf 'QUEUE_CONNECTION=%s\n' "${QUEUE_CONNECTION:-sync}"
+
+    # Railway provides DATABASE_URL. Laravel's pgsql driver reads DB_URL
+    # for its "url" key, which takes precedence over individual host/port vars.
+    if [ -n "$DATABASE_URL" ]; then
+        printf 'DB_URL=%s\n' "$DATABASE_URL"
+    else
+        # Fallback: individual vars (local Docker or non-Railway hosting)
+        printf 'DB_HOST=%s\n'     "${DB_HOST:-127.0.0.1}"
+        printf 'DB_PORT=%s\n'     "${DB_PORT:-5432}"
+        printf 'DB_DATABASE=%s\n' "${DB_DATABASE:-laravel}"
+        printf 'DB_USERNAME=%s\n' "${DB_USERNAME:-postgres}"
+        printf 'DB_PASSWORD=%s\n' "${DB_PASSWORD:-}"
+    fi
 } > .env
 
 # ── 2. Generate APP_KEY if not provided ───────────────────────────────────────
