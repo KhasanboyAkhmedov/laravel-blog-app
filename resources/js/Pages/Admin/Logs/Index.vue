@@ -36,10 +36,6 @@ const modelName = (model) => model ? model.split('\\').pop() : '—';
             <!-- Page title -->
             <div class="flex items-end justify-between">
                 <h2 class="text-2xl font-bold text-on-surface tracking-tight">System Logs</h2>
-                <div class="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-xl border border-outline-variant">
-                    <span class="material-symbols-outlined text-[16px] text-on-surface-variant">history</span>
-                    <span class="text-xs text-on-surface-variant">Audit trail</span>
-                </div>
             </div>
 
             <!-- Stats bar -->
