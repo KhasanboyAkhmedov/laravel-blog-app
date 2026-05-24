@@ -8,6 +8,7 @@ use App\Services\ActivityLoggerService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
@@ -61,7 +62,7 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'name'                  => 'required|string|max:255',
-            'email'                 => 'required|email|unique:users,email,' . $user->id,
+            'email'                 => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password'              => 'nullable|string|min:8|confirmed',
             'password_confirmation' => 'nullable|string',
         ]);
@@ -90,15 +91,16 @@ class UserController extends Controller
         abort_if($user->id === auth()->id(), 403, 'Cannot delete your own account.');
 
         $name = $user->name;
+        $email = $user->email;
+
+        $user->delete();
 
         ActivityLoggerService::logRaw(
             action:  'account_deleted',
             model:   User::class,
             modelId: $user->id,
-            payload: ['name' => $name, 'email' => $user->email, 'deleted_by' => auth()->user()->email],
+            payload: ['name' => $name, 'email' => $email, 'deleted_by' => auth()->user()->email],
         );
-
-        $user->delete();
 
         return back()->with('message', "User {$name} deleted.");
     }
