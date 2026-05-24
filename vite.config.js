@@ -6,7 +6,7 @@ export default defineConfig({
     plugins: [
         laravel({
             input: 'resources/js/app.js',
-            refresh: true,
+            refresh: ['resources/views/**', 'routes/**', 'app/**'],
         }),
         vue({
             template: {
@@ -19,15 +19,16 @@ export default defineConfig({
     ],
 
     server: {
-        // Bind to all interfaces inside the Docker container
         host: '0.0.0.0',
         port: 5173,
-
-        // Tell the browser where to connect for hot reload
-        // "localhost" = your machine, 5173 = exposed port
         hmr: {
             host: 'localhost',
-            port: 5173,
+            clientPort: 5300,
+        },
+        watch: {
+            usePolling: true,
+            interval: 300,
+            ignored: ['**/vendor/**', '**/storage/**', '**/node_modules/**'],
         },
     },
 });
