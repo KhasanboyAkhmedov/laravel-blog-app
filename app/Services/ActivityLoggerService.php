@@ -29,9 +29,9 @@ class ActivityLoggerService
     public static function logRaw(
         string $action,
         string $model,
-        int $modelId,
+        string $modelId,
         ?array $payload = null,
-        ?int $userId = null
+        ?string $userId = null
     ): void {
         ActivityLog::create([
             'user_id'  => $userId ?? auth()->id(),
