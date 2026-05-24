@@ -6,7 +6,10 @@ import { ref } from 'vue';
 const props = defineProps({
     users: Object,
     roles: Array,
+    authUserId: String,
 });
+
+const isSelf = (userId) => userId === props.authUserId;
 
 // Role change
 const updateRole = (userId, role) => {
@@ -27,6 +30,34 @@ const openCreate = () => { createForm.reset(); showCreate.value = true; };
 const closeCreate = () => { showCreate.value = false; };
 const submitCreate = () => {
     createForm.post(route('admin.users.store'), { onSuccess: closeCreate });
+};
+
+// Edit user modal
+const showEdit = ref(false);
+const editingUser = ref(null);
+const editForm = useForm({ name: '', email: '', password: '', password_confirmation: '' });
+
+const openEdit = (user) => {
+    editingUser.value = user;
+    editForm.name = user.name;
+    editForm.email = user.email;
+    editForm.password = '';
+    editForm.password_confirmation = '';
+    showEdit.value = true;
+};
+const closeEdit = () => { showEdit.value = false; editingUser.value = null; };
+const submitEdit = () => {
+    editForm.patch(route('admin.users.update', editingUser.value.id), { onSuccess: closeEdit });
+};
+
+// Delete user modal
+const showDelete = ref(false);
+const deletingUser = ref(null);
+
+const openDelete = (user) => { deletingUser.value = user; showDelete.value = true; };
+const closeDelete = () => { showDelete.value = false; deletingUser.value = null; };
+const submitDelete = () => {
+    router.delete(route('admin.users.destroy', deletingUser.value.id), { onSuccess: closeDelete });
 };
 
 const initials = (name) => name ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?';
@@ -91,6 +122,7 @@ const roleColor = (role) => ({
                                 <th class="px-6 py-4 text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold hidden md:table-cell">Email</th>
                                 <th class="px-6 py-4 text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold">Role</th>
                                 <th class="px-6 py-4 text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold text-right">Change Role</th>
+                                <th class="px-6 py-4 text-[11px] text-on-surface-variant uppercase tracking-wider font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-outline-variant">
@@ -132,9 +164,28 @@ const roleColor = (role) => ({
                                         >{{ role.name }}</option>
                                     </select>
                                 </td>
+                                <td class="px-6 py-4 text-right">
+                                    <template v-if="!isSelf(user.id)">
+                                        <button
+                                            @click="openEdit(user)"
+                                            class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors"
+                                            title="Edit user"
+                                        >
+                                            <span class="material-symbols-outlined text-[18px]">edit</span>
+                                        </button>
+                                        <button
+                                            @click="openDelete(user)"
+                                            class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-error hover:bg-error/10 transition-colors ml-1"
+                                            title="Delete user"
+                                        >
+                                            <span class="material-symbols-outlined text-[18px]">delete</span>
+                                        </button>
+                                    </template>
+                                    <span v-else class="text-xs text-on-surface-variant opacity-40">You</span>
+                                </td>
                             </tr>
                             <tr v-if="!users.data.length">
-                                <td colspan="4" class="px-6 py-12 text-center text-on-surface-variant text-sm">
+                                <td colspan="5" class="px-6 py-12 text-center text-on-surface-variant text-sm">
                                     <span class="material-symbols-outlined text-[40px] block mb-2 opacity-30">group</span>
                                     No users found.
                                 </td>
@@ -275,6 +326,91 @@ const roleColor = (role) => ({
                             </button>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <!-- Edit User Modal -->
+            <div v-if="showEdit" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" @click="closeEdit" />
+                <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-secondary/10 flex items-center justify-center flex-shrink-0">
+                                <span class="material-symbols-outlined text-secondary text-[20px]">edit</span>
+                            </div>
+                            <h2 class="text-base font-bold text-on-surface">Edit User</h2>
+                        </div>
+                        <button @click="closeEdit" class="p-1.5 hover:bg-surface-container rounded-lg text-on-surface-variant transition-colors">
+                            <span class="material-symbols-outlined text-[20px]">close</span>
+                        </button>
+                    </div>
+                    <form @submit.prevent="submitEdit" class="p-6 space-y-4">
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Name</label>
+                            <input v-model="editForm.name" type="text" placeholder="Full name"
+                                class="w-full px-4 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm text-on-surface placeholder-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                            <p v-if="editForm.errors.name" class="text-xs text-error flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">error</span>{{ editForm.errors.name }}
+                            </p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Email</label>
+                            <input v-model="editForm.email" type="email" placeholder="user@example.com"
+                                class="w-full px-4 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm text-on-surface placeholder-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                            <p v-if="editForm.errors.email" class="text-xs text-error flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">error</span>{{ editForm.errors.email }}
+                            </p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">New Password <span class="normal-case font-normal text-on-surface-variant opacity-60">(leave blank to keep current)</span></label>
+                            <input v-model="editForm.password" type="password" placeholder="Min. 8 characters"
+                                class="w-full px-4 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm text-on-surface placeholder-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                            <p v-if="editForm.errors.password" class="text-xs text-error flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">error</span>{{ editForm.errors.password }}
+                            </p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Confirm New Password</label>
+                            <input v-model="editForm.password_confirmation" type="password" placeholder="Repeat new password"
+                                class="w-full px-4 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-xl text-sm text-on-surface placeholder-outline focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                        </div>
+                        <div class="flex justify-end gap-3 pt-2">
+                            <button type="button" @click="closeEdit"
+                                class="px-4 py-2.5 text-sm rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors">Cancel</button>
+                            <button type="submit" :disabled="editForm.processing"
+                                class="flex items-center gap-2 px-4 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-semibold hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span class="material-symbols-outlined text-[18px]">save</span>
+                                {{ editForm.processing ? 'Saving…' : 'Save Changes' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Delete Confirmation Modal -->
+            <div v-if="showDelete" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div class="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" @click="closeDelete" />
+                <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+                    <div class="p-6 text-center space-y-4">
+                        <div class="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center mx-auto">
+                            <span class="material-symbols-outlined text-error text-[24px]">person_remove</span>
+                        </div>
+                        <div>
+                            <h2 class="text-base font-bold text-on-surface">Delete User?</h2>
+                            <p class="text-sm text-on-surface-variant mt-1">
+                                <strong>{{ deletingUser?.name }}</strong> will be permanently deleted. Their posts will remain but show as written by a deleted user.
+                            </p>
+                        </div>
+                        <div class="flex gap-3 justify-center pt-2">
+                            <button @click="closeDelete"
+                                class="px-4 py-2.5 text-sm rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors">Cancel</button>
+                            <button @click="submitDelete"
+                                class="flex items-center gap-2 px-4 py-2.5 bg-error text-on-error rounded-xl text-sm font-semibold hover:opacity-90 transition-all active:scale-[0.98]">
+                                <span class="material-symbols-outlined text-[18px]">delete</span>
+                                Delete User
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </Teleport>
