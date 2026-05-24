@@ -53,8 +53,8 @@ return new class extends Migration
             Schema::table('activity_logs', fn(Blueprint $t) => $t->dropForeign(['user_id']));
 
             // ── 5. Drop Spatie composite PKs and indexes (model_id is part of PK)
-            DB::statement('ALTER TABLE model_has_roles DROP CONSTRAINT model_has_roles_role_model_type_primary');
-            DB::statement('ALTER TABLE model_has_permissions DROP CONSTRAINT model_has_permissions_permission_model_type_primary');
+            DB::statement('ALTER TABLE model_has_roles DROP CONSTRAINT model_has_roles_pkey');
+            DB::statement('ALTER TABLE model_has_permissions DROP CONSTRAINT model_has_permissions_pkey');
             DB::statement('DROP INDEX model_has_roles_model_id_model_type_index');
             DB::statement('DROP INDEX model_has_permissions_model_id_model_type_index');
             DB::statement('DROP INDEX IF EXISTS sessions_user_id_index');
