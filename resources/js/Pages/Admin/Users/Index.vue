@@ -45,7 +45,11 @@ const openEdit = (user) => {
     editForm.password_confirmation = '';
     showEdit.value = true;
 };
-const closeEdit = () => { showEdit.value = false; editingUser.value = null; };
+const closeEdit = () => {
+    editForm.reset();
+    showEdit.value = false;
+    editingUser.value = null;
+};
 const submitEdit = () => {
     editForm.patch(route('admin.users.update', editingUser.value.id), { onSuccess: closeEdit });
 };
@@ -53,11 +57,20 @@ const submitEdit = () => {
 // Delete user modal
 const showDelete = ref(false);
 const deletingUser = ref(null);
+const isDeleting = ref(false);
 
 const openDelete = (user) => { deletingUser.value = user; showDelete.value = true; };
-const closeDelete = () => { showDelete.value = false; deletingUser.value = null; };
+const closeDelete = () => {
+    showDelete.value = false;
+    deletingUser.value = null;
+    isDeleting.value = false;
+};
 const submitDelete = () => {
-    router.delete(route('admin.users.destroy', deletingUser.value.id), { onSuccess: closeDelete });
+    isDeleting.value = true;
+    router.delete(route('admin.users.destroy', deletingUser.value.id), {
+        onSuccess: closeDelete,
+        onFinish: () => { isDeleting.value = false; },
+    });
 };
 
 const initials = (name) => name ? name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?';
@@ -404,10 +417,10 @@ const roleColor = (role) => ({
                         <div class="flex gap-3 justify-center pt-2">
                             <button @click="closeDelete"
                                 class="px-4 py-2.5 text-sm rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container transition-colors">Cancel</button>
-                            <button @click="submitDelete"
-                                class="flex items-center gap-2 px-4 py-2.5 bg-error text-on-error rounded-xl text-sm font-semibold hover:opacity-90 transition-all active:scale-[0.98]">
+                            <button @click="submitDelete" :disabled="isDeleting"
+                                class="flex items-center gap-2 px-4 py-2.5 bg-error text-on-error rounded-xl text-sm font-semibold hover:opacity-90 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
                                 <span class="material-symbols-outlined text-[18px]">delete</span>
-                                Delete User
+                                {{ isDeleting ? 'Deleting…' : 'Delete User' }}
                             </button>
                         </div>
                     </div>
